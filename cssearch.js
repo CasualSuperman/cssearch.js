@@ -8,7 +8,7 @@ window.testing = true;
 		return s;
 	}
 	function tree(selector) {
-		var curr = {token: "", next: ""};
+		var curr = {token: "", relationship: ""};
 		var tree = curr;
 	    var len = selector.length;
 	    var i = 0;
@@ -20,6 +20,7 @@ window.testing = true;
 	        switch (mode) {
 	            case modes.selector:
 	                var match = selector.charAt(i++).match(/[^ >]/);
+					console.log("Selector:", match);
 	                if (match !== null) {
 	                    if (match !== "~" || match === "~" && selector.charAt(i) === "=" || match === "+" && selector.charAt(i-2).match(/^n$/i)) {
 	                        curr.token += match;
@@ -34,6 +35,7 @@ window.testing = true;
 	                break;
 	            case modes.relationship:
 	                var match = selector.charAt(i++).match(/[ +>~]/);
+					console.log("Relationship:", match);
 	                if (match === null) {
 	                    i--;
 	                    mode = modes.selector;
@@ -80,11 +82,23 @@ window.testing = true;
 			var selector = tree.token;
 			delete tree.token;
 			var node = parse(selector);
+			tree.tagName = node.tagName;
 			tree.conditions = node.conditions;
+			tree.get = function(node) {
+				return function() {
+					return get.call(node);
+				};
+			}(tree);
 			tree = tree.next;
 		}
 	}
 	function parse(str) {
+		this.tagName = "*";
+		var tag = str.match(/^\w+/);
+		if (tag !== null) {
+			this.tagName = tag[0].toUpperCase();
+			str = str.substr(tag[0].length);
+		}
 		this.conditions = [];
 		while (str.length > 0) {
 			var slen = str.length;
@@ -123,20 +137,53 @@ window.testing = true;
 		}
 		return this;
 	}
+	function get() {
+		console.log(this);
+		var elems = doc.getElementsByTagName(this.tagName);
+		console.log(elems);
+		var results = [];
+		for (var i = 0, len = elems.length; i < len; ++i) {
+			var passed = true;
+			for (var a = 0, len2 = this.conditions.length; a < len2 && passed; ++a) {
+				if (! this.conditions[a](elems[i])) {
+					passed = false;
+				}
+			}
+			if (passed) {
+				results.push(elems[i]);
+			}
+		}
+		console.log(results);
+		var next = [];
+		for (var i = 0, len = results.length; i < len; ++i) {
+			next.push(relationships.get(results[i], this.relationship, this.next.tagName)); 
+		}
+		console.log(next);
+		return next;
+	}
 	var relationships = {
 		descendant: 0,
 		nextSibling: 1,
 		childNode: 2,
 		sibling: 3
 	};
-	relationships.get = function(node, relation) {
+	relationships.get = function(node, relation, tagName) {
 		switch(relation) {
 			case relationships.descendant:
-				return node.getElementsByTagName;
+				return node.getElementsByTagName(tagName);
 			case relationships.nextSibling:
-				return node.nextElementSibling;
+				if (node.nextSibling.nodeType === 1 && node.nextSibling.nodeName === tagName)
+					return [node.nextSibling];
+				return [];
 			case relationships.childNode:
-				return node.children;
+				var children = [],
+					childNodes = node.childNodes;
+					for (var i = 0, len = childNodes.length; i < len; ++i) {
+						if (childNodes[i].nodeName === tagName) {
+							children.push(childNodes[i]);
+						}
+					}
+				return children;
 			case relationships.sibling:
 				var siblings = [];
 				while (node.nextSibling) {
@@ -149,12 +196,6 @@ window.testing = true;
 		}
 	}
 	var properties = [
-		[/^\w+/, function(match) {
-			var name = match[0].toUpperCase();
-			return function(node) {
-				return node.tagName === name;
-			}
-		}],
 		[/^\.(\w+)/, function(match) {
 			var reg = new RegExp("\\b" + match[1] + "\\b");
 			return function(node) {
@@ -177,28 +218,40 @@ window.testing = true;
 		}],
 		[":first-of-type", function(node) {
 			if (node.parentNode !== undefined) {
-				var nodes = node.parentNode.getElementsByTagName(node.tagName);
+				var nodes = node.parentNode.getElementsByTagName(node.nodeName);
 				return nodes[0] === node;
 			}
 		}],
 		[":last-of-type", function(node) {
 			if (node.parentNode !== undefined) {
-				var nodes = node.parentNode.getElementsByTagName(node.tagName);
+				var nodes = node.parentNode.getElementsByTagName(node.nodeName);
 				return nodes[nodes.length - 1] === node;
 			}
 		}],
 		[":only-child", function(node) {
 			if (node.parentNode !== undefined) {
-				return node.parentNode.children.length === 1;		
+				var children = node.parentNode.childNodes;
+				var nodeCount = 0;
+				for (var i = 0, len = children.length; i < len && nodeCount < 2; ++i) {
+					if (children[i].nodeType === 1)
+						nodeCount++;
+				}
+				return nodeCount === 1;
 			}
 		}],
 		[":only-of-type", function(node) {
 			if (node.parentNode !== undefined) {
-				return node.parentNode.getElementsByTagName(node.tagName).length === 1;
+				return node.parentNode.getElementsByTagName(node.nodeName).length === 1;
 			}
 		}],
 		[":empty", function(node) {
-			return node.childNodes.length === 0;
+			var children = node.childNodes;
+			for (var i = 0, len = children.length; i < len; ++i) {
+				if (children[i].nodeType === 1) {
+					return false;
+				}
+			}
+			return true;
 		}],
 		[":focus", function(node) {
 			return node.ownerDocument.activeElement === node;
@@ -209,7 +262,9 @@ window.testing = true;
 		[":disabled", function(node) {
 			return node.disabled === true;
 		}],
-		[":checked"],
+		[":checked", function(node) {
+			return node.checked === true;
+		}],
 		[/^:nth-((?:last-)?(?:child|of-type))\(\s*([oO][dD]{2}|[eE][vV][eE][nN]|[-+]?\d+|[-+]?\d*[nN](\s*[-+]\s*\d+)?)\s*\)/, function(match) {
 			if (match[2].match(/odd/i)) {
 				match[2] = "2n+1";
@@ -249,19 +304,19 @@ window.testing = true;
 			switch(match[1]) {
 				case "last-child":
 					return function(node) {
-						return find(node, node.parentNode.children.reverse())
+						return find(node, node.parentNode.childNodes.reverse())
 					};
 				case "of-type":
 					return function(node) {
-						return find(node, node.parentNode.getElementsByTagName(node.tagName));
+						return find(node, node.parentNode.getElementsByTagName(node.nodeName));
 					};
 				case "child":
 					return function(node) {
-						return find(node, node.parentNode.children);
+						return find(node, node.parentNode.childNodes);
 					};
 				case "last-of-type":
 					return function(node) {
-						return find(node, node.parentNode.getElementsByTagName(node.tagName).reverse());
+						return find(node, node.parentNode.getElementsByTagName(node.nodeName).reverse());
 					};
 			}
 		}],
@@ -296,7 +351,7 @@ window.testing = true;
 					};
 				case "*=":
 					return function(node) {
-						return node.hasAttribte(attr) && node.getAttribute(attr).indexOf(val) !== -1;
+						return node.hasAttribute(attr) && node.getAttribute(attr).indexOf(val) !== -1;
 					};
 				case "|=":
 					var reg = new RegExp("^" + val + "-");
