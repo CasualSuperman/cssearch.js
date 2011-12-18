@@ -93,9 +93,8 @@
 			if (specials !== null) {
 				var special = specials[0];
 				var specials = [];
-				var not = false;
 				while (special.length > 0) {
-					var property = {not: not, property: "", value: ""};
+					var property = {not: false, property: "", value: ""};
 					var func = null;
 					for (var i = 0, len = properties.length; i < len && func === null; ++i) {
 						var test = properties[i][0];
@@ -118,15 +117,16 @@
 							case Function:
 								var match = test(special);
 								if (match.matched === true) {
-									property.str = match.str;
-									func = match;
-									not = match.not;
+									for (var i = match.matches.length - 1; i >= 0; i++) {
+										specials.push(match.matches[i]);
+									}
 									special = special.substr(match.length);
 								}
 								break;
 						}
 					}
 					if (func === null) {
+						console.log(special);
 						throw "ParseError";
 					}
 					if (func !== undefined) {
@@ -182,11 +182,13 @@
 		this.matched = str.indexOf(":not(") === 0;
 		this.not = true;
 		this.length = 5;
+		return this;
 	}]);
 	properties.push([function(str) {
 		this.matched = str.indexOf(")") === 0;
 		this.not = false;
 		this.length = 1;
+		return this;
 	}]);
 	window.$s = s;
 }());
