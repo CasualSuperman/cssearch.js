@@ -116,7 +116,7 @@
 						var match = str.match(test);
 						if (match !== null) {
 							func = undefined;
-							properties[i][1](match).call(this);
+							this.properties.push(properties[i][1](match));
 							str = str.substr(match[0].length);
 						}
 						break;
@@ -219,7 +219,7 @@
 					break;
 			}
 		}],
-		[/^\[(\w+)(?:([~^$|*]?=)"((?:[^"]+|(?:\\)")*)")?/, function(match) {
+		[/^\[(\w+)(?:([~^$|*]?=)"((?:[^"]+|(?:\\)")*)")?]/, function(match) {
 			var attr = match[1];
 			var type = match[2];
 			var val = match[3];
