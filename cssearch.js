@@ -97,7 +97,8 @@
 				switch(test.constructor) {
 					case String:
 						if (str.indexOf(test) == 0) {
-							func = properties[i][1];
+							func = undefined;
+							this.properties.push(properties[i][1]);
 							str = str.substr(test.length);
 						}
 						break;
@@ -117,13 +118,14 @@
 						break;
 				}
 			}
-			if (func !== null) {
+			if (func !== null && func !== undefined) {
 				func.call(this);
-			} else {
+			} else if (func === null) {
 				console.log(str);
 				throw "IllegalExpression";
 			}
 		}
+		return this;
 	}
 	s = function(string) {
 		var parse = tree(string);
@@ -145,14 +147,40 @@
 				}
 			}
 		}],
-		[":root"],
-		[":first-child"],
-		[":last-child"],
-		[":first-of-type"],
-		[":last-of-type"],
-		[":only-child"],
-		[":only-of-type"],
-		[":empty"],
+		[":root", function(node) {
+			return node.parentNode === document;
+		}],
+		[":first-child", function(node) {
+			return node.parentNode && node.parentNode.firstChild === node;
+		}],
+		[":last-child", function(node) {
+			return node.parentNode && node.parentNode.lastChild === node;
+		}],
+		[":first-of-type", function(node) {
+			if (node.parentNode !== undefined) {
+				var nodes = node.parentNode.getElementsByTagName(node.tagName);
+				return nodes[0] === node;
+			}
+		}],
+		[":last-of-type", function(node) {
+			if (node.parentNode !== undefined) {
+				var nodes = node.parentNode.getElementsByTagName(node.tagName);
+				return nodes[nodes.length - 1] === node;
+			}
+		}],
+		[":only-child", function(node) {
+			if (node.parentNode !== undefined) {
+				return node.parentNode.childNodes.length === 1;		
+			}
+		}],
+		[":only-of-type", function(node) {
+			if (node.parentNode !== undefined) {
+				return node.parentNode.getElementsByTagName(node.tagName).length === 0;
+			}
+		}],
+		[":empty", function(node) {
+			return node.childNodes.length === 0;
+		}],
 		[":link"],
 		[":visited"],
 		[":active"],
