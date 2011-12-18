@@ -17,9 +17,9 @@
 		while (i < len) {
 	        switch (mode) {
 	            case modes.selector:
-	                var match = selector.charAt(i++).match(/[^ +>]/);
+	                var match = selector.charAt(i++).match(/[^ >]/);
 	                if (match !== null) {
-	                    if (match !== "~" || match === "~" && selector.charAt(i) === "=") {
+	                    if (match !== "~" || match === "~" && selector.charAt(i) === "=" || match === "+" && selector.charAt(i-2).match(/^n$/i)) {
 	                        curr.token += match;
 	                    } else {
 	                        i -= 1;
@@ -144,6 +144,20 @@
 		return parse;
 	}
 	var properties = [
+		[/^\.(\w+)/, function(match) {
+			return function() {
+				this.classes.push(match[1]);
+			}
+		}],
+		[/^#(\w+)/, function(match) {
+			return function() {
+				if (this.id !== null) {
+					this.properties.unshift(function() { return false; });
+				} else {
+					this.id = match[1];
+				}
+			}
+		}],
 		[":root"],
 		[":first-child"],
 		[":last-child"],
