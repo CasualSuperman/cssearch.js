@@ -91,7 +91,82 @@
 			}
 			var specials = selector.match(/:|\[.+$/);
 			if (specials !== null) {
-				tree.specials = specials[0];
+				var special = specials[0];
+				var specials = [];
+				var not = false;
+				var property = {not: not, property: "", value: ""};
+				specials.push(property);
+				var len = special.length;
+				var i = 0;
+				while (i < len) {
+					switch(special.charAt(i++) {
+						case ":":
+							
+							break;
+						case "[":
+							var modes = {attr: 0, type: 1, inquote: 2, done: 3, escaping: 4}
+							var mode = modes.attr;
+							var prop = "";
+							var val = "";
+							var type = "";
+							while (i < len && mode != modes.done;) {
+								var one = special.charAt(i++);
+								switch(mode) {
+									case modes.attr:
+										if (one.match(/^[|=^$*]$/)) {
+											i--;
+											mode = modes.type;
+										} else if (one.match(/^]$/)) {
+											mode = modes.done;
+										} else {
+											prop += one;
+										}
+										break;
+									case modes.type:
+										if (one.match(/^[|=^$*]$/)) {
+											type += one;
+										} else if (one === '"') {
+											mode = modes.inquote;
+										} else {
+											throw "ParseError";
+										}
+										break;
+									case modes.inquote:
+										if (one.match(/^\\$/)) {
+											if (one.charAt(i).match(/^["'\]$/)) {
+												mode = modes.escaping;
+											} else {
+												throw "EscapeError";
+											}
+										} else if (one.match(/^[^"]$/)) {
+											val += one;
+										} else {
+											if (special.charAt(i) === "]") {
+												mode = modes.done;
+												i++;
+											} else {
+												throw "ParseError";
+											}
+										}
+										break;
+									case modes.escaping:
+										val += one;
+										mode = modes.inquote;
+										break;
+									default:
+										throw "ModeError";
+										break;
+								}
+							}
+							property.attr = prop;
+							property.value = val;
+							property.relation = type;
+							break;
+					}
+					property = {not: not, property: "", value: ""};
+					specials.push(property);
+				}
+				tree.specials = specials;
 			}
 			tree = tree[tree["relationship"]];
 		}
