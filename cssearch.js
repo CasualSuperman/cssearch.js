@@ -94,17 +94,46 @@
 				var special = specials[0];
 				var specials = [];
 				var not = false;
-				var property = {not: not, property: "", value: ""};
-				specials.push(property);
 				while (special.length > 0) {
+					var property = {not: not, property: "", value: ""};
 					var func = null;
 					for (var i = 0, len = properties.length; i < len && func === null; ++i) {
+						var test = properties[i][0];
+						switch(test.constructor) {
+							case RegExp:
+								var match = special.match(test);
+								if (match !== null) {
+									property.str = match[0];
+									func = properties[i][1];
+									special = special.substr(match[0].length);
+								}
+								break;
+							case String:
+								if (special.indexOf(test) == 0) {
+									property.str = test;
+									func = properties[i][1];
+									special = special.substr(test.length);
+								}
+								break;
+							case Function:
+								var match = test(special);
+								if (match.matched === true) {
+									property.str = match.str;
+									func = match;
+									special = special.substr(match.length);
+								}
+								break;
+						}
 						var match = special.match(properties[i][0])
 						if (match !== null) {
+							property.str = match[0];
 							func = properties[i][1](match);
+							special = special.substr(match[0].length);
 						}
 					}
-					property = {not: not, property: "", value: ""};
+					if (func === null) {
+						throw "ParseError";
+					}
 					specials.push(property);
 				}
 				tree.specials = specials;
@@ -118,39 +147,43 @@
 		return parse;
 	}
 	var properties = [
-		[/^:root/],
+		[":root"],
+		[":first-child"],
+		[":last-child"],
+		[":first-of-type"],
+		[":last-of-type"],
+		[":only-child"],
+		[":only-of-type"],
+		[":empty"],
+		[":link"],
+		[":visited"],
+		[":active"],
+		[":hover"],
+		[":focus"],
+		[":target"],
+		[":lang\(\w\w\)"],
+		[":enabled"],
+		[":disabled"],
+		[":checked"],
+		["::first-line"],
+		["::first-letter"],
+		["::before"],
+		["::after"],
 		[/^:nth-child\(\d+\)/],
 		[/^:nth-last-type\(\d+\)/],
 		[/^:nth-of-type\(\d+\)/],
 		[/^:nth-last-of-type\(\d+\)/],
-		[/^:first-child/],
-		[/^:last-child/],
-		[/^:first-of-type/],
-		[/^:last-of-type/],
-		[/^:only-child/],
-		[/^:only-of-type/],
-		[/^:empty/],
-		[/^:link/],
-		[/^:visited/],
-		[/^:active/],
-		[/^:hover/],
-		[/^:focus/],
-		[/^:target/],
-		[/^:lang\(\w\w\)/],
-		[/^:enabled/],
-		[/^:disabled/],
-		[/^:checked/],
-		[/^::first-line/],
-		[/^::first-letter/],
-		[/^::before/],
-		[/^::after/],
 		[/^\[\w+\]/],
-		[/^\[\w+="([^"]+|(?:\\)")"\]/],
-		[/^\[\w+~="([^"]+|(?:\\)")"\]/],
-		[/^\[\w+\^="([^"]+|(?:\\)")"\]/],
-		[/^\[\w+\$="([^"]+|(?:\\)")"\]/],
-		[/^\[\w+\|="([^"]+|(?:\\)")"\]/],
-		[/^\[\w+\*="([^"]+|(?:\\)")"\]/]
+		[/^\[\w+="((?:[^"]+|(?:\\)")*)"\]/],
+		[/^\[\w+~="((?:[^"]+|(?:\\)")*)"\]/],
+		[/^\[\w+\^="((?:[^"]+|(?:\\)")*)"\]/],
+		[/^\[\w+\$="((?:[^"]+|(?:\\)")*)"\]/],
+		[/^\[\w+\|="((?:[^"]+|(?:\\)")*)"\]/],
+		[/^\[\w+\*="((?:[^"]+|(?:\\)")*)"\]/],
+		[/^:not\(([a-zA-Z]+|\*)?((\.\w+)(#\w+)?|(#\w+\.\w+))?(::?\w+)?\)/]
 	];
+	for (var i = 0; i < properties.length; i++) {
+		properties[i][1] = function(){};
+	}
 	window.$s = s;
 }());
