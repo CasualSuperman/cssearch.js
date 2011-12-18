@@ -4,7 +4,8 @@ window.testing = true;
 		old = window.$s,
 		win = window,
 		doc = document;
-	s.noConflict = function() {window.$s = old;
+	s.noConflict = function() {
+		window.$s = old;
 		return s;
 	}
 	function tree(selector) {
@@ -401,7 +402,7 @@ window.testing = true;
 						return node.hasAttribute(attr) && node.getAttribute(attr).indexOf(val) !== -1;
 					};
 				case "|=":
-					var reg = new RegExp("^" + val + "-");
+					var reg = new RegExp("^" + val + "(?:-|$)");
 					return function(node) {
 						return reg.test(node.getAttribute(attr));
 					};
