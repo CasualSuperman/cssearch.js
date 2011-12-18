@@ -8,14 +8,14 @@ function parse(string) {
 	while (string.length) {
 		var matched = false;
 		for (var i = 0; i < modeCount && !matched; ++i) {
-			var match = new modes[i](string);
+			var match = new modes[i].test(string);
 			matched = match.matched;
 			if (matched) {
 				string = string.substr(match.len);
 				nodes.push(match);
 			}
 		}
-		if (! matched) {
+		if (!matched) {
 			if (nodes[nodes.length - 1].err) {
 				nodes[nodes.length - 1].err += string.charAt(0);
 			} else {
@@ -29,61 +29,73 @@ function parse(string) {
 	return nodes;
 }
 
-parse.MODES = {
-	NAME: (function() {
-			var expr = new RegExp("^(" + reg.NAME + ")", "i");
-			return function(str) {
-				var match = this.match = str.match(expr);
-				if (match !== null) {
-					this.token   = match[1];
-					this.len     = match[0].length;
-					this.matched = true;
-					this.type    = "tag";
-				}
-				return this;
-			};
-		}()),
-	CLASS: (function() {
-			var expr = new RegExp("^\\.(" + reg.NAME + ")", "i");
-			return function(str) {
-				var match = this.match = str.match(expr);
-				if (match !== null) {
-					this.token   = match[1];
-					this.len     = match[0].length;
-					this.matched = true;
-					this.type    = "class";
-				}
-				return this;
-			};
-		}()),
-	ID: (function() {
-			var expr = new RegExp("^#(" + reg.NAME + ")", "i");
-			return function(str) {
-				var match = this.match = str.match(expr);
-				if (match !== null) {
-					this.token   = match[1];
-					this.len     = match[0].length;
-					this.matched = true;
-					this.type    = "id";
-				}
-				return this;
-			};
-		}()),
-	ATTR: (function() {
-		var expr = new RegExp("^(\\[\\s*(" + reg.NAME +
-					")\\s*(?:([~|^$*]?=)\\s*(" + reg.STRING + "))?\\s*\\])", "i")
+parse.MODES = {};
+parse.MODES.NAME ={
+	 test: (function() {
+		var expr = new RegExp("^(" + reg.NAME + ")", "i");
+		return function(str) {
+			var match = this.match = str.match(expr);
+			if (match !== null) {
+				this.token   = match[1];
+				this.len     = match[0].length;
+				this.matched = true;
+				this.type    = {name: "tag"};
+			}
+			return this;
+		};
+	}()),
+	exec: (function() {}())
+};
+parse.MODES.CLASS = {
+	test: (function() {
+		var expr = new RegExp("^\\.(" + reg.NAME + ")", "i");
+		return function(str) {
+			var match = this.match = str.match(expr);
+			if (match !== null) {
+				this.token   = match[1];
+				this.len     = match[0].length;
+				this.matched = true;
+				this.type    = {name: "class"};
+			}
+			return this;
+		};
+	}()),
+	exec: (function() {}())
+};
+parse.MODES.ID = {
+	test: (function() {
+		var expr = new RegExp("^#(" + reg.NAME + ")", "i");
+		return function(str) {
+			var match = this.match = str.match(expr);
+			if (match !== null) {
+				this.token   = match[1];
+				this.len     = match[0].length;
+				this.matched = true;
+				this.type    = {name: "id"};
+			}
+			return this;
+		};
+	}()),
+	exec: (function() {}())
+};
+parse.MODES.ATTR = {
+	test: (function() {
+		var expr = new RegExp("^(\\[\\s*(" + reg.NAME +	")\\s*(?:([~|^$*]?=)\\s*(" + reg.STRING + "))?\\s*\\])", "i")
 		return function(str) {
 				var match = this.match = str.match(expr);
 				if (match !== null) {
 					this.token   = match[1];
 					this.len     = match[0].length;
 					this.matched = true;
-					this.type    = "attr";
+					this.type    = {name: "attr"};
 				}
 				return this;
 		};
 	}()),
-	PSEUDO: (function() {
+	exec: (function() {}())
+};
+parse.MODES.PSEUDO = {
+	test: (function() {
 		var matches = [
 			/^:(?:(?:first|last|only)-(?:child|of-type))/,
 			/^:(?:(?:nth-last|nth)-(?:child|of-type))/, // Followed by n-expression
@@ -101,31 +113,37 @@ parse.MODES = {
 							this.matched = true;
 							this.token   = match[0];
 							this.len     = match[0].length;
-							this.type    = "pseudo";
+							this.type    = {name: "pseudo"};
 						}
 					}
 				}
 				return this;
 		};
 	}()),
-	NOT: (function() {
+	exec: (function() {}())
+}
+parse.MODES.NOT = {
+	test: (function() {
 		var begin = /^:not\(/i;
 		return function(str) {
 				if (str.indexOf(")") === 0) {
 					this.matched = true;
 					this.token   = ")";
 					this.len     = 1;
-					this.type    = "not-end";
+					this.type    = {name: "not-end"};
 				} else if (begin.test(str)) {
 					this.matched = true;
 					this.token   = ":not(";
 					this.len     = 5;
-					this.type    = "not-begin";
+					this.type    = {name: "not-begin"};
 				}
 				return this;
 		};
 	}()),
-	RELATION: (function() {
+	exec: (function() {}())
+}
+parse.MODES.RELATION = {
+	test: (function() {
 		var expr = /^\s*([- +>~,])\s*/;
 		return function(str) {
 				var match = str.match(expr);
@@ -133,11 +151,12 @@ parse.MODES = {
 					this.matched = true;
 					this.token   = match[1];
 					this.len     = match[0].length;
-					this.type    = "relationship";
+					this.type    = relationship[match[1]];
 				}
 				return this;
 		};
-	}())
+	}()),
+	exec: (function() {}())
 };
 parse.ModeList = [
 	parse.MODES.NAME,
@@ -150,8 +169,8 @@ parse.ModeList = [
 ];
 
 var relationship = {
-	DESCENDANT_NODE: " ",
-	CHILD_NODE: ">",
-	NEXT_ELDEST_SIBLING: "+",
-	YOUNGER_SIBLING: "~"
+	" ": {name: "DESCENDANT_NODE"},
+	">": {name: "CHILD_NODE"},
+	"+": {name: "NEXT_ELDEST_SIBLING"},
+	"~": {name: "YOUNDER_SIBLING"}
 };
