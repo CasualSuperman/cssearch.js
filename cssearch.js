@@ -1,3 +1,4 @@
+(function(){
 	var s   = {},
 		old = window.$s;
 	s.noConflict = function() {
@@ -18,7 +19,6 @@
 	            case modes.selector:
 	                var match = selector.charAt(i++).match(/[^ +>]/);
 	                if (match !== null) {
-	                    console.log(i-1, match);
 	                    if (match !== "~" || match === "~" && selector.charAt(i) === "=") {
 	                        curr.token += match;
 	                    } else {
@@ -26,7 +26,6 @@
 	                        mode = modes.relationship;
 	                    }
 	                } else {
-	                    console.log("Switching to relationship");
 	                    mode = modes.relationship;
 	                    i--;
 	                }
@@ -34,19 +33,17 @@
 	            case modes.relationship:
 	                var match = selector.charAt(i++).match(/[ +>~]/);
 	                if (match === null) {
-	                    console.log("Switching to selector.");
 	                    i--;
 	                    mode = modes.selector;
 	                    curr = newCurrent(curr);
 	                } else {
-	                    console.log(i-1, match);
 	                    curr.relationship += match;
 	                }
 	                break;
 	            default:
 	                console.log("Illegal state.");
 	                console.log("Mode = ", mode);
-	                i++;
+	                i = len;
 	                break;
 	        }
 		}
@@ -79,3 +76,4 @@
 		return tree(string);
 	}
 	window.$s = s;
+}());
