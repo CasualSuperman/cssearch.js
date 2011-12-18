@@ -16,14 +16,7 @@ function parse(string) {
 			}
 		}
 		if (!matched) {
-			if (nodes[nodes.length - 1].err) {
-				nodes[nodes.length - 1].err += string.charAt(0);
-			} else {
-				nodes.push({
-					err: string.charAt(0)
-				});
-			}
-			string = string.substr(1);
+			throw "ParseError";
 		}
 	}
 	return nodes;
@@ -39,7 +32,7 @@ parse.MODES.NAME ={
 				this.token   = match[1];
 				this.len     = match[0].length;
 				this.matched = true;
-				this.type    = {name: "tag"};
+				this.type    = parse.TypeList.TAG;
 			}
 			return this;
 		};
@@ -55,7 +48,7 @@ parse.MODES.CLASS = {
 				this.token   = match[1];
 				this.len     = match[0].length;
 				this.matched = true;
-				this.type    = {name: "class"};
+				this.type    = parse.TypeList.CLASS;
 			}
 			return this;
 		};
@@ -71,7 +64,7 @@ parse.MODES.ID = {
 				this.token   = match[1];
 				this.len     = match[0].length;
 				this.matched = true;
-				this.type    = {name: "id"};
+				this.type    = parse.TypeList.ID;
 			}
 			return this;
 		};
@@ -87,7 +80,7 @@ parse.MODES.ATTR = {
 					this.token   = match[1];
 					this.len     = match[0].length;
 					this.matched = true;
-					this.type    = {name: "attr"};
+					this.type    = parse.TypeList.ATTR;
 				}
 				return this;
 		};
@@ -113,7 +106,7 @@ parse.MODES.PSEUDO = {
 							this.matched = true;
 							this.token   = match[0];
 							this.len     = match[0].length;
-							this.type    = {name: "pseudo"};
+							this.type    = parse.TypeList.PSEUDO;
 						}
 					}
 				}
@@ -130,12 +123,12 @@ parse.MODES.NOT = {
 					this.matched = true;
 					this.token   = ")";
 					this.len     = 1;
-					this.type    = {name: "not-end"};
+					this.type    = parse.TypeList.NOT_E;
 				} else if (begin.test(str)) {
 					this.matched = true;
 					this.token   = ":not(";
 					this.len     = 5;
-					this.type    = {name: "not-begin"};
+					this.type    = parse.TypeList.NOT_B;
 				}
 				return this;
 		};
@@ -167,10 +160,25 @@ parse.ModeList = [
 	parse.MODES.NOT,
 	parse.MODES.RELATION
 ];
+parse.TypeList = {
+	ID:     0,
+	TAG:    1,
+	CLASS:  2,
+	PSEUDO: 3,
+	ATTR:   4,
+	NOT_B:  5,
+	NOT_E:  6,
+	DESC_N: 7,
+	CHIL_N: 8,
+	NXES_N: 9,
+	YNSB_N: 10,
+	LIST:   11
+}
 
 var relationship = {
-	" ": {name: "DESCENDANT_NODE"},
-	">": {name: "CHILD_NODE"},
-	"+": {name: "NEXT_ELDEST_SIBLING"},
-	"~": {name: "YOUNDER_SIBLING"}
+	" ": parse.TypeList.DESC_N,
+	">": parse.TypeList.CHIL_N,
+	"+": parse.TypeList.NXES_N,
+	"~": parse.TypeList.YNSB_N,
+	",": parse.TypeList.LIST
 };
