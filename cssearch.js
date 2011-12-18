@@ -7,7 +7,7 @@
 	}
 	function tree(selector) {
 		var curr = {token: "", relationship: ""};
-		var tree = {root: curr};
+		var tree = curr;
 	    var len = selector.length;
 	    var i = 0;
 	    var modes = {selector: 0, relationship: 1};
@@ -65,15 +65,41 @@
 	            relationship = "sibling"
 	            break;
 	        default:
+				console.log(node.relationship);
 	            throw "ParseError";
 	            break;
 	    }
 		node["relationship"] = relationship;
-		node[relationship] = {token: ""};
+		node[relationship] = {token: "", relationship: ""};
 		return node[relationship];
 	}
+	function breakdown(tree) {
+		while (tree !== undefined) {
+			var selector = tree.token;
+			delete tree.token;
+			var tag = selector.match(/^\*/) ? ["*"] : selector.match(/^\w*/);
+			if (tag !== null) {
+				tree.tag = tag[0];
+			}
+			var id = selector.match(/#\w+/);
+			if (id !== null) {
+				tree.id = id[0];
+			}
+			var className = selector.match(/\.\w+/);
+			if (className !== null) {
+				tree.className = className[0];
+			}
+			var specials = selector.match(/:|\[.+$/);
+			if (specials !== null) {
+				tree.specials = specials[0];
+			}
+			tree = tree[tree["relationship"]];
+		}
+	}
 	s = function(string) {
-		return tree(string);
+		var parse = tree(string);
+		breakdown(parse);
+		return parse;
 	}
 	window.$s = s;
 }());
