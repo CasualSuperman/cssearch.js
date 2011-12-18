@@ -77,65 +77,52 @@
 		while (tree !== undefined) {
 			var selector = tree.token;
 			delete tree.token;
-			var tag = selector.match(/^\*/) ? ["*"] : selector.match(/^\w*/);
-			if (tag !== null) {
-				tree.tag = tag[0];
-			}
-			var id = selector.match(/#\w+/);
-			if (id !== null) {
-				tree.id = id[0];
-			}
-			var className = selector.match(/\.\w+/);
-			if (className !== null) {
-				tree.className = className[0];
-			}
-			var specials = selector.match(/:|\[.+$/);
-			if (specials !== null) {
-				var special = specials[0];
-				var specials = [];
-				while (special.length > 0) {
-					var property = {not: false, property: "", value: ""};
-					var func = null;
-					for (var i = 0, len = properties.length; i < len && func === null; ++i) {
-						var test = properties[i][0];
-						switch(test.constructor) {
-							case RegExp:
-								var match = special.match(test);
-								if (match !== null) {
-									property.str = match[0];
-									func = properties[i][1];
-									special = special.substr(match[0].length);
-								}
-								break;
-							case String:
-								if (special.indexOf(test) == 0) {
-									property.str = test;
-									func = properties[i][1];
-									special = special.substr(test.length);
-								}
-								break;
-							case Function:
-								var match = test(special);
-								if (match.matched === true) {
-									for (var i = match.matches.length - 1; i >= 0; i++) {
-										specials.push(match.matches[i]);
-									}
-									special = special.substr(match.length);
-								}
-								break;
-						}
-					}
-					if (func === null) {
-						console.log(special);
-						throw "ParseError";
-					}
-					if (func !== undefined) {
-						specials.push(property);
-					}
-				}
-				tree.specials = specials;
-			}
+			var node = parse(selector);
 			tree = tree[tree["relationship"]];
+		}
+	}
+	function parse(str) {
+		var tag = str.match(/^\*/) ? ["*"] : str.match(/^\w*/);
+		if (tag !== null) {
+			this.tag = tag[0];
+			str = str.substr(this.tag.length);
+		}
+		this.id = null;
+		this.classes = [];
+		this.properties = [];
+		while (str.length > 0) {
+			var func = null;
+			for (var i = 0, len = properties.length; i < len && func === null; ++i) {
+				var test = properties[i][0];
+				switch(test.constructor) {
+					case String:
+						if (str.indexOf(test) == 0) {
+							func = properties[i][1];
+							str = str.substr(test.length);
+						}
+						break;
+					case RegExp:
+						var match = str.match(test);
+						if (match !== null) {
+							func = properties[i][1](match);
+							str = str.substr(match[0].length);
+						}
+						break;
+					case Function:
+						var match = test(str);
+						if (match.matched === true) {
+							func = match;
+							str = str.substr(match.length);
+						}
+						break;
+				}
+			}
+			if (func !== null) {
+				func.call(this);
+			} else {
+				console.log(str);
+				throw "IllegalExpression";
+			}
 		}
 	}
 	s = function(string) {
