@@ -120,21 +120,18 @@
 								if (match.matched === true) {
 									property.str = match.str;
 									func = match;
+									not = match.not;
 									special = special.substr(match.length);
 								}
 								break;
-						}
-						var match = special.match(properties[i][0])
-						if (match !== null) {
-							property.str = match[0];
-							func = properties[i][1](match);
-							special = special.substr(match[0].length);
 						}
 					}
 					if (func === null) {
 						throw "ParseError";
 					}
-					specials.push(property);
+					if (func !== undefined) {
+						specials.push(property);
+					}
 				}
 				tree.specials = specials;
 			}
@@ -179,11 +176,17 @@
 		[/^\[\w+\^="((?:[^"]+|(?:\\)")*)"\]/],
 		[/^\[\w+\$="((?:[^"]+|(?:\\)")*)"\]/],
 		[/^\[\w+\|="((?:[^"]+|(?:\\)")*)"\]/],
-		[/^\[\w+\*="((?:[^"]+|(?:\\)")*)"\]/],
-		[/^:not\(([a-zA-Z]+|\*)?((\.\w+)(#\w+)?|(#\w+\.\w+))?(::?\w+)?\)/]
+		[/^\[\w+\*="((?:[^"]+|(?:\\)")*)"\]/]
 	];
-	for (var i = 0; i < properties.length; i++) {
-		properties[i][1] = function(){};
-	}
+	properties.push([function(str) {
+		this.matched = str.indexOf(":not(") === 0;
+		this.not = true;
+		this.length = 5;
+	}]);
+	properties.push([function(str) {
+		this.matched = str.indexOf(")") === 0;
+		this.not = false;
+		this.length = 1;
+	}]);
 	window.$s = s;
 }());
