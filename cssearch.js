@@ -1,3 +1,4 @@
+window.testing = true;
 (function(){
 	var s   = {},
 		old = window.$s;
@@ -92,69 +93,56 @@
 		}
 	}
 	function parse(str) {
-		var tag = str.match(/^\*/) ? ["*"] : str.match(/^\w*/);
-		if (tag !== null) {
-			this.tag = tag[0];
-			str = str.substr(this.tag.length);
-		}
-		this.id = null;
-		this.classes = [];
-		this.properties = [];
+		this.conditions = [];
 		while (str.length > 0) {
-			var func = null;
+			var len = str.length;
 			for (var i = 0, len = properties.length; i < len && func === null; ++i) {
 				var test = properties[i][0];
 				switch(test.constructor) {
 					case String:
 						if (str.indexOf(test) == 0) {
-							func = undefined;
-							this.properties.push(properties[i][1]);
+							this.conditions.push(properties[i][1]);
 							str = str.substr(test.length);
 						}
 						break;
 					case RegExp:
 						var match = str.match(test);
 						if (match !== null) {
-							func = undefined;
-							this.properties.push(properties[i][1](match));
+							this.conditions.unshift(properties[i][1](match));
 							str = str.substr(match[0].length);
 						}
 						break;
 					case Function:
 						var match = test(str);
 						if (match.matched === true) {
-							func = undefined;
 							match.call(this);
 							str = str.substr(match.length);
 						}
 						break;
 				}
 			}
-			if (func === null) {
+			if (str.length === len) {
 				console.log(str);
 				throw "IllegalExpression";
 			}
 		}
 		return this;
 	}
-	s = function(string) {
-		var parse = tree(string);
-		breakdown(parse);
-		return parse;
-	}
 	var properties = [
+		[/^\w+/, function(match) {
+			var name = match[0].toUpperCase();
+			return function(node) {
+				return node.tagName === name;
+			}
+		}],
 		[/^\.(\w+)/, function(match) {
-			return function() {
-				this.classes.push(match[1]);
+			return function(node) {
+				return new RegExp("\\b" + match[1] + "\\b").test(node.className);
 			}
 		}],
 		[/^#(\w+)/, function(match) {
-			return function() {
-				if (this.id !== null) {
-					this.properties.unshift(function() { return false; });
-				} else {
-					this.id = match[1];
-				}
+			return function(node) {
+				return node.id === match[1];
 			}
 		}],
 		[":root", function(node) {
@@ -180,7 +168,7 @@
 		}],
 		[":only-child", function(node) {
 			if (node.parentNode !== undefined) {
-				return node.parentNode.childNodes.length === 1;		
+				return node.parentNode.children.length === 1;		
 			}
 		}],
 		[":only-of-type", function(node) {
@@ -194,8 +182,9 @@
 		[":link"],
 		[":visited"],
 		[":active"],
-		[":hover"],
-		[":focus"],
+		[":focus", function(node) {
+			return node.ownerDocument.activeElement === node;		
+		}],
 		[":target"],
 		[":enabled"],
 		[":disabled"],
@@ -221,13 +210,13 @@
 		}],
 		[/^\[(\w+)(?:([~^$|*]?=)"((?:[^"]+|(?:\\)")*)")?]/, function(match) {
 			var attr = match[1];
-			var type = match[2];
-			var val = match[3];
-			if (type === undefined) {
+			if (match.length === 2) {
 				return function(node) {
 					return node.hasAttribute(attr);
 				};
 			}
+			var type = match[2];
+			var val = match[3];
 			switch (type) {
 				case "=":
 					return function(node) {
@@ -268,5 +257,19 @@
 		this.length = 1;
 		return this;
 	}]);
+	s = (function(string) {
+		if (document.querySelectorAll !== undefined && !window.testing) {
+			return function(query, context) {
+				context = context || document;
+				return context.querySelectorAll(query);
+			}
+		} else {
+			return function(string) {
+				var parse = tree(string);
+				breakdown(parse);
+				return parse;
+			}
+		}
+	}());
 	window.$s = s;
 }());
