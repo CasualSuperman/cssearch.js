@@ -96,72 +96,13 @@
 				var not = false;
 				var property = {not: not, property: "", value: ""};
 				specials.push(property);
-				var len = special.length;
-				var i = 0;
-				while (i < len) {
-					switch(special.charAt(i++) {
-						case ":":
-							
-							break;
-						case "[":
-							var modes = {attr: 0, type: 1, inquote: 2, done: 3, escaping: 4}
-							var mode = modes.attr;
-							var prop = "";
-							var val = "";
-							var type = "";
-							while (i < len && mode != modes.done;) {
-								var one = special.charAt(i++);
-								switch(mode) {
-									case modes.attr:
-										if (one.match(/^[|=^$*]$/)) {
-											i--;
-											mode = modes.type;
-										} else if (one.match(/^]$/)) {
-											mode = modes.done;
-										} else {
-											prop += one;
-										}
-										break;
-									case modes.type:
-										if (one.match(/^[|=^$*]$/)) {
-											type += one;
-										} else if (one === '"') {
-											mode = modes.inquote;
-										} else {
-											throw "ParseError";
-										}
-										break;
-									case modes.inquote:
-										if (one.match(/^\\$/)) {
-											if (one.charAt(i).match(/^["'\]$/)) {
-												mode = modes.escaping;
-											} else {
-												throw "EscapeError";
-											}
-										} else if (one.match(/^[^"]$/)) {
-											val += one;
-										} else {
-											if (special.charAt(i) === "]") {
-												mode = modes.done;
-												i++;
-											} else {
-												throw "ParseError";
-											}
-										}
-										break;
-									case modes.escaping:
-										val += one;
-										mode = modes.inquote;
-										break;
-									default:
-										throw "ModeError";
-										break;
-								}
-							}
-							property.attr = prop;
-							property.value = val;
-							property.relation = type;
-							break;
+				while (special.length > 0) {
+					var func = null;
+					for (var i = 0, len = properties.length; i < len && func === null; ++i) {
+						var match = special.match(properties[i][0])
+						if (match !== null) {
+							func = properties[i][1](match);
+						}
 					}
 					property = {not: not, property: "", value: ""};
 					specials.push(property);
@@ -176,5 +117,40 @@
 		breakdown(parse);
 		return parse;
 	}
+	var properties = [
+		[/^:root/],
+		[/^:nth-child\(\d+\)/],
+		[/^:nth-last-type\(\d+\)/],
+		[/^:nth-of-type\(\d+\)/],
+		[/^:nth-last-of-type\(\d+\)/],
+		[/^:first-child/],
+		[/^:last-child/],
+		[/^:first-of-type/],
+		[/^:last-of-type/],
+		[/^:only-child/],
+		[/^:only-of-type/],
+		[/^:empty/],
+		[/^:link/],
+		[/^:visited/],
+		[/^:active/],
+		[/^:hover/],
+		[/^:focus/],
+		[/^:target/],
+		[/^:lang\(\w\w\)/],
+		[/^:enabled/],
+		[/^:disabled/],
+		[/^:checked/],
+		[/^::first-line/],
+		[/^::first-letter/],
+		[/^::before/],
+		[/^::after/],
+		[/^\[\w+\]/],
+		[/^\[\w+="([^"]+|(?:\\)")"\]/],
+		[/^\[\w+~="([^"]+|(?:\\)")"\]/],
+		[/^\[\w+\^="([^"]+|(?:\\)")"\]/],
+		[/^\[\w+\$="([^"]+|(?:\\)")"\]/],
+		[/^\[\w+\|="([^"]+|(?:\\)")"\]/],
+		[/^\[\w+\*="([^"]+|(?:\\)")"\]/]
+	];
 	window.$s = s;
 }());
