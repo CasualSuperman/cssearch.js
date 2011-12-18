@@ -115,22 +115,22 @@
 					case RegExp:
 						var match = str.match(test);
 						if (match !== null) {
-							func = properties[i][1](match);
+							func = undefined;
+							properties[i][1](match).call(this);
 							str = str.substr(match[0].length);
 						}
 						break;
 					case Function:
 						var match = test(str);
 						if (match.matched === true) {
-							func = match;
+							func = undefined;
+							match.call(this);
 							str = str.substr(match.length);
 						}
 						break;
 				}
 			}
-			if (func !== null && func !== undefined) {
-				func.call(this);
-			} else if (func === null) {
+			if (func === null) {
 				console.log(str);
 				throw "IllegalExpression";
 			}
