@@ -72,7 +72,6 @@ parse.MODES = {
 	ATTR: (function() {
 		var expr = new RegExp("^(\\[\\s*(" + reg.NAME +
 					")\\s*(?:([~|^$*]?=)\\s*(" + reg.STRING + "))?\\s*\\])", "i")
-		console.log(expr);
 		return function(str) {
 				var match = this.match = str.match(expr);
 				if (match !== null) {
@@ -110,14 +109,32 @@ parse.MODES = {
 		};
 	}()),
 	NOT: (function() {
+		var begin = /^:not\(/i;
 		return function(str) {
-				
+				if (str.indexOf(")") === 0) {
+					this.matched = true;
+					this.token   = ")";
+					this.len     = 1;
+					this.type    = "not-end";
+				} else if (begin.test(str)) {
+					this.matched = true;
+					this.token   = ":not(";
+					this.len     = 5;
+					this.type    = "not-begin";
+				}
 				return this;
 		};
 	}()),
 	RELATION: (function() {
+		var expr = /^\s*([- +>~,])\s*/;
 		return function(str) {
-				
+				var match = str.match(expr);
+				if (match !== null) {
+					this.matched = true;
+					this.token   = match[1];
+					this.len     = match[0].length;
+					this.type    = "relationship";
+				}
 				return this;
 		};
 	}())
