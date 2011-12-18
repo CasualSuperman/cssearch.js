@@ -20,7 +20,6 @@ window.testing = true;
 	        switch (mode) {
 	            case modes.selector:
 	                var match = selector.charAt(i++).match(/[^ >]/);
-					console.log("Selector:", match);
 	                if (match !== null) {
 	                    if (match !== "~" || match === "~" && selector.charAt(i) === "=" || match === "+" && selector.charAt(i-2).match(/^n$/i)) {
 	                        curr.token += match;
@@ -35,7 +34,6 @@ window.testing = true;
 	                break;
 	            case modes.relationship:
 	                var match = selector.charAt(i++).match(/[ +>~]/);
-					console.log("Relationship:", match);
 	                if (match === null) {
 	                    i--;
 	                    mode = modes.selector;
@@ -83,6 +81,7 @@ window.testing = true;
 			delete tree.token;
 			var node = parse(selector);
 			tree.tagName = node.tagName;
+			tree.id = node.id;
 			tree.conditions = node.conditions;
 			tree.get = function(node) {
 				return function() {
@@ -138,9 +137,19 @@ window.testing = true;
 		return this;
 	}
 	function get() {
-		console.log(this);
-		var elems = doc.getElementsByTagName(this.tagName);
-		console.log(elems);
+		var elems = relationships.get(document, relationships.descendant, this);
+		var elems = [];
+		if (this.id !== undefined) {
+			var elem = doc.getElementById(this.id);
+			if (elem.nodeName === this.tagName) {
+				elems.push(elem);
+			}
+		} else {
+			elems = doc.getElementsByTagName(this.tagName);
+		}
+		if (elems === []) {
+			return elems;
+		}
 		var results = [];
 		for (var i = 0, len = elems.length; i < len; ++i) {
 			var passed = true;
@@ -153,12 +162,10 @@ window.testing = true;
 				results.push(elems[i]);
 			}
 		}
-		console.log(results);
 		var next = [];
 		for (var i = 0, len = results.length; i < len; ++i) {
 			next.push(relationships.get(results[i], this.relationship, this.next.tagName)); 
 		}
-		console.log(next);
 		return next;
 	}
 	var relationships = {
@@ -167,7 +174,43 @@ window.testing = true;
 		childNode: 2,
 		sibling: 3
 	};
-	relationships.get = function(node, relation, tagName) {
+	relationships.get = function(node, relation, rules) {
+		var pull = function() {
+			function verify(node) {
+				for (var a = 0, len2 = rules.conditions.length; a < len2; ++a) {
+					if (! rules.conditions[a](elems[i])) {
+						return false;
+					}
+				}
+			}
+			if (rules.id !== undefined) {
+				return function() {
+					var elem = node.getElementById(rules.id),
+						elems = [],
+						results = [];
+					if (elem.nodeName === rules.tagName) {
+						elems = [elem];
+						for (var i = 0, len = elems.length; i < len; ++i) {
+							if (verify(elems[i])) {
+								results.push(elems[i]);
+							}
+						}
+					}
+					return results;
+				}
+			} else {
+				return function() {
+					var elems = node.getElementsByTagName(rules.tagName),
+						results = [];
+					for (var i = 0, len = elems.length; i < len; ++i) {
+						if (verify(elems[i])) {
+							results.push(elems[i]);
+						}
+					}
+					return results;
+				}
+			}
+		}();
 		switch(relation) {
 			case relationships.descendant:
 				return node.getElementsByTagName(tagName);
@@ -202,9 +245,13 @@ window.testing = true;
 				return reg.test(node.className);
 			}
 		}],
-		[/^#(\w+)/, function(match) {
-			return function(node) {
-				return node.id === match[1];
+		[function(str) {
+			var id = str.match(/^#(\w+)/)
+			if (id !== null) {
+				return function() {
+					this.id = id[1];
+					this.length = id[0].length;
+				}
 			}
 		}],
 		[":root", function(node) {
