@@ -78,6 +78,16 @@
 			var selector = tree.token;
 			delete tree.token;
 			var node = parse(selector);
+			if (node.tag !== undefined) {
+				tree.tag = node.tag;
+			}
+			if (node.classes !== undefined) {
+				tree.classes = node.classes;
+			}
+			if (node.id !== undefined) {
+				tree.id = node.id;
+			}
+			tree.properties = node.properties;
 			tree = tree[tree["relationship"]];
 		}
 	}
