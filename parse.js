@@ -31,11 +31,11 @@ function parse(string) {
 
 parse.MODES = {
 	NAME: (function() {
-			var expr = new RegExp("^" + reg.NAME, "i");
+			var expr = new RegExp("^(" + reg.NAME + ")", "i");
 			return function(str) {
 				var match = this.match = str.match(expr);
 				if (match !== null) {
-					this.token   = match[0];
+					this.token   = match[1];
 					this.len     = match[0].length;
 					this.matched = true;
 					this.type    = "tag";
@@ -44,11 +44,11 @@ parse.MODES = {
 			};
 		}()),
 	CLASS: (function() {
-			var expr = new RegExp("^\\." + reg.NAME, "i");
+			var expr = new RegExp("^\\.(" + reg.NAME + ")", "i");
 			return function(str) {
 				var match = this.match = str.match(expr);
 				if (match !== null) {
-					this.token   = match[0];
+					this.token   = match[1];
 					this.len     = match[0].length;
 					this.matched = true;
 					this.type    = "class";
@@ -57,11 +57,11 @@ parse.MODES = {
 			};
 		}()),
 	ID: (function() {
-			var expr = new RegExp("^#" + reg.NAME, "i");
+			var expr = new RegExp("^#(" + reg.NAME + ")", "i");
 			return function(str) {
 				var match = this.match = str.match(expr);
 				if (match !== null) {
-					this.token   = match[0];
+					this.token   = match[1];
 					this.len     = match[0].length;
 					this.matched = true;
 					this.type    = "id";
@@ -70,13 +70,13 @@ parse.MODES = {
 			};
 		}()),
 	ATTR: (function() {
-		var expr = new RegExp("^\\[\\s*" + reg.NAME +
-					"\\s*(?:([|^$*]?=)\\s*(" + reg.STRING + "))?\\s*\\]", "i")
+		var expr = new RegExp("^(\\[\\s*(" + reg.NAME +
+					")\\s*(?:([~|^$*]?=)\\s*(" + reg.STRING + "))?\\s*\\])", "i")
 		console.log(expr);
 		return function(str) {
 				var match = this.match = str.match(expr);
 				if (match !== null) {
-					this.token   = match[0];
+					this.token   = match[1];
 					this.len     = match[0].length;
 					this.matched = true;
 					this.type    = "attr";
