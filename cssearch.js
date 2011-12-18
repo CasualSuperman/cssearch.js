@@ -200,8 +200,25 @@
 		[":enabled"],
 		[":disabled"],
 		[":checked"],
-		[/^:lang\((\w{2}(?:-\w{2})?)\)/],
-		[/^:nth-((?:last-)?child|(?:of-)?type)\(\s*([oO][dD]{2}|[eE][vV][eE][nN]|[-+]?\d+|[-+]?\d*[nN](\s*[-+]\s*\d+)?)\s*\)/],
+		[/^:nth-((?:last-)?(?:child|of-type))\(\s*([oO][dD]{2}|[eE][vV][eE][nN]|[-+]?\d+|[-+]?\d*[nN](\s*[-+]\s*\d+)?)\s*\)/, function(match) {
+			if (match[2].match(/odd/i)) {
+				match[2] = "2n+1";
+			} else if (match[2].match(/even/i)) {
+				match[2] = "2n";
+			}
+			switch(match[1]) {
+				case "last-child":
+					return function(node) {
+						
+					};
+				case "of-type":
+					break;
+				case "child":
+					break;
+				case "last-of-type":
+					break;
+			}
+		}],
 		[/^\[\w+\]/],
 		[/^\[\w+="((?:[^"]+|(?:\\)")*)"\]/],
 		[/^\[\w+~="((?:[^"]+|(?:\\)")*)"\]/],
