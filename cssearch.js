@@ -8,7 +8,7 @@ window.testing = true;
 		return s;
 	}
 	function tree(selector) {
-		var curr = {token: "", relationship: ""};
+		var curr = {token: "", next: ""};
 		var tree = curr;
 	    var len = selector.length;
 	    var i = 0;
@@ -55,25 +55,25 @@ window.testing = true;
 	    var relationship;
 	    switch (node.relationship.trim()) {
 	        case "":
-	            relationship = "descendant";
+	            relationship = relationships.descendant;
 	            break;
 	        case "+":
-	            relationship = "nextSibling";
+	            relationship = relationships.nextSibling;
 	            break;
 	        case ">":
-	            relationship = "childNode";
+	            relationship = relationships.childNode;
 	            break;
 	        case "~":
-	            relationship = "sibling"
+	            relationship = relationships.sibling;
 	            break;
 	        default:
 				console.log(node.relationship);
-	            throw "ParseError";
-	            break;
+				throw "ParseError";
+				break;
 	    }
-		node["relationship"] = relationship;
-		node[relationship] = {token: "", relationship: ""};
-		return node[relationship];
+		node.relationship = relationship;
+		node.next = {token: "", relationship: ""};
+		return node.next;
 	}
 	function breakdown(tree) {
 		while (tree !== undefined) {
@@ -81,7 +81,7 @@ window.testing = true;
 			delete tree.token;
 			var node = parse(selector);
 			tree.conditions = node.conditions;
-			tree = tree[tree["relationship"]];
+			tree = tree.next;
 		}
 	}
 	function parse(str) {
@@ -123,6 +123,31 @@ window.testing = true;
 		}
 		return this;
 	}
+	var relationships = {
+		descendant: 0,
+		nextSibling: 1,
+		childNode: 2,
+		sibling: 3
+	};
+	relationships.get = function(node, relation) {
+		switch(relation) {
+			case relationships.descendant:
+				return node.getElementsByTagName;
+			case relationships.nextSibling:
+				return node.nextElementSibling;
+			case relationships.childNode:
+				return node.children;
+			case relationships.sibling:
+				var siblings = [];
+				while (node.nextSibling) {
+					if (node.nextSibling.nodeType === 1) {
+						siblings.push(node.nextSibling);
+					}
+					node = node.nextSibling;
+				}
+				return siblings;
+		}
+	}
 	var properties = [
 		[/^\w+/, function(match) {
 			var name = match[0].toUpperCase();
@@ -131,8 +156,9 @@ window.testing = true;
 			}
 		}],
 		[/^\.(\w+)/, function(match) {
+			var reg = new RegExp("\\b" + match[1] + "\\b");
 			return function(node) {
-				return new RegExp("\\b" + match[1] + "\\b").test(node.className);
+				return reg.test(node.className);
 			}
 		}],
 		[/^#(\w+)/, function(match) {
@@ -174,15 +200,15 @@ window.testing = true;
 		[":empty", function(node) {
 			return node.childNodes.length === 0;
 		}],
-		[":link"],
-		[":visited"],
-		[":active"],
 		[":focus", function(node) {
 			return node.ownerDocument.activeElement === node;
 		}],
-		[":target"],
-		[":enabled"],
-		[":disabled"],
+		[":enabled", function(node) {
+			return node.disabled === false;
+		}],
+		[":disabled", function(node) {
+			return node.disabled === true;
+		}],
 		[":checked"],
 		[/^:nth-((?:last-)?(?:child|of-type))\(\s*([oO][dD]{2}|[eE][vV][eE][nN]|[-+]?\d+|[-+]?\d*[nN](\s*[-+]\s*\d+)?)\s*\)/, function(match) {
 			if (match[2].match(/odd/i)) {
@@ -190,17 +216,53 @@ window.testing = true;
 			} else if (match[2].match(/even/i)) {
 				match[2] = "2n";
 			}
+			function num(str) {
+				var n = str.match(/n/i) !== null,
+					points;
+				if (n) {
+					points = str.match(/([-+]?\d*)n(\s*[-+]\s*\d+)?/i);
+					var reps = parseInt(points[1]);
+					var offset = parseInt(points[2]);
+					return function(needle, haystack) {
+						var found = -1,
+							i = 0,
+							len = haystack.length;
+						for (; i < len; ++i) {
+							if (haystack[i] === needle) {
+								found = i;
+							}
+						}
+						if (found === -1) {
+							return false;
+						}
+						return (found - offset) % reps === 0;
+					}
+				} else {
+					points = str.match(/[-+]?\d+/);
+					var offset = parseInt(points[0]);
+					return function(needle, haystack) {
+						return haystack[offset] === needle;
+					}
+				}
+			}
+			var find = num(match[2]);
 			switch(match[1]) {
 				case "last-child":
 					return function(node) {
-						
+						return find(node, node.parentNode.children.reverse())
 					};
 				case "of-type":
-					break;
+					return function(node) {
+						return find(node, node.parentNode.getElementsByTagName(node.tagName));
+					};
 				case "child":
-					break;
+					return function(node) {
+						return find(node, node.parentNode.children);
+					};
 				case "last-of-type":
-					break;
+					return function(node) {
+						return find(node, node.parentNode.getElementsByTagName(node.tagName).reverse());
+					};
 			}
 		}],
 		[/^\[(\w+)(?:([~^$|*]?=)"((?:[^"]+|(?:\\)")*)")?]/, function(match) {
@@ -218,24 +280,28 @@ window.testing = true;
 						return node.getAttribute(attr) === val;
 					};
 				case "~=":
+					var reg = new RegExp("\\b" + val + "\\b");
 					return function(node) {
-						return new RegExp("\\b" + val + "\\b").test(node.getAttribute(attr));
+						return reg.test(node.getAttribute(attr));
 					};
 				case "^=":
+					var reg = new RegExp("^" + val);
 					return function(node) {
-						return new RegExp("^" + val).test(node.getAttribte(attr));
+						return reg.test(node.getAttribute(attr));
 					};
 				case "$=":
+					var reg = new RegExp(val + "$");
 					return function(node) {
-						return new RegExp(val + "$").test(node.getAttribte(attr));
+						return reg.test(node.getAttribute(attr));
 					};
 				case "*=":
 					return function(node) {
 						return node.hasAttribte(attr) && node.getAttribute(attr).indexOf(val) !== -1;
 					};
 				case "|=":
+					var reg = new RegExp("^" + val + "-");
 					return function(node) {
-						return new RegExp("^" + val + "-").test(node.getAttribte(attr));
+						return reg.test(node.getAttribute(attr));
 					};
 			}
 		}]
@@ -252,7 +318,7 @@ window.testing = true;
 		this.length = 1;
 		return this;
 	}]);
-	s = (function(string) {
+	s = (function() {
 		if (doc.querySelectorAll !== undefined && !win.testing) {
 			return function(query, context) {
 				context = context || doc;
