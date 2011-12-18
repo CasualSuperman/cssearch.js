@@ -1,9 +1,10 @@
 window.testing = true;
 (function(){
 	var s   = {},
-		old = window.$s;
-	s.noConflict = function() {
-		window.$s = old;
+		old = window.$s,
+		win = window,
+		doc = document;
+	s.noConflict = function() {window.$s = old;
 		return s;
 	}
 	function tree(selector) {
@@ -79,30 +80,22 @@ window.testing = true;
 			var selector = tree.token;
 			delete tree.token;
 			var node = parse(selector);
-			if (node.tag !== undefined) {
-				tree.tag = node.tag;
-			}
-			if (node.classes !== undefined) {
-				tree.classes = node.classes;
-			}
-			if (node.id !== undefined) {
-				tree.id = node.id;
-			}
-			tree.properties = node.properties;
+			tree.conditions = node.conditions;
 			tree = tree[tree["relationship"]];
 		}
 	}
 	function parse(str) {
 		this.conditions = [];
 		while (str.length > 0) {
-			var len = str.length;
-			for (var i = 0, len = properties.length; i < len && func === null; ++i) {
+			var slen = str.length;
+			for (var i = 0, len = properties.length; i < len; ++i) {
 				var test = properties[i][0];
 				switch(test.constructor) {
 					case String:
 						if (str.indexOf(test) == 0) {
 							this.conditions.push(properties[i][1]);
 							str = str.substr(test.length);
+							i = len;
 						}
 						break;
 					case RegExp:
@@ -110,6 +103,7 @@ window.testing = true;
 						if (match !== null) {
 							this.conditions.unshift(properties[i][1](match));
 							str = str.substr(match[0].length);
+							i = len;
 						}
 						break;
 					case Function:
@@ -117,11 +111,12 @@ window.testing = true;
 						if (match.matched === true) {
 							match.call(this);
 							str = str.substr(match.length);
+							i = len;
 						}
 						break;
 				}
 			}
-			if (str.length === len) {
+			if (str.length === slen) {
 				console.log(str);
 				throw "IllegalExpression";
 			}
@@ -146,7 +141,7 @@ window.testing = true;
 			}
 		}],
 		[":root", function(node) {
-			return node.parentNode === document;
+			return node.parentNode === doc;
 		}],
 		[":first-child", function(node) {
 			return node.parentNode && node.parentNode.firstChild === node;
@@ -173,7 +168,7 @@ window.testing = true;
 		}],
 		[":only-of-type", function(node) {
 			if (node.parentNode !== undefined) {
-				return node.parentNode.getElementsByTagName(node.tagName).length === 0;
+				return node.parentNode.getElementsByTagName(node.tagName).length === 1;
 			}
 		}],
 		[":empty", function(node) {
@@ -183,7 +178,7 @@ window.testing = true;
 		[":visited"],
 		[":active"],
 		[":focus", function(node) {
-			return node.ownerDocument.activeElement === node;		
+			return node.ownerDocument.activeElement === node;
 		}],
 		[":target"],
 		[":enabled"],
@@ -258,9 +253,9 @@ window.testing = true;
 		return this;
 	}]);
 	s = (function(string) {
-		if (document.querySelectorAll !== undefined && !window.testing) {
+		if (doc.querySelectorAll !== undefined && !win.testing) {
 			return function(query, context) {
-				context = context || document;
+				context = context || doc;
 				return context.querySelectorAll(query);
 			}
 		} else {
@@ -271,5 +266,5 @@ window.testing = true;
 			}
 		}
 	}());
-	window.$s = s;
+	win.$s = s;
 }());
