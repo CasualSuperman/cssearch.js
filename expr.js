@@ -1,0 +1,13 @@
+var reg = {};
+reg.UNICODE = '\\\\[0-9a-f]{1,6}(\\r\\n|[ \\n\\r\\t\\f])?';
+reg.ESCAPE = reg.UNICODE + "|" + '\\\\[^\\n\\r\\f0-9a-f]';
+reg.NONASCII = '[^\\0-\\177]';
+reg.NMSTART = '[_a-z]' + "|" + reg.NONASCII + "|" + reg.ESCAPE;
+reg.NMCHAR = '[_a-z0-9-]' + "|" + reg.NONASCII + "|" + reg.ESCAPE;
+reg.IDENT = '-?' + "(" + reg.NMSTART + ")(" + reg.NMCHAR + ")*";
+reg.NUM = '[0-9]+|[0-9]*\\.[0-9]+';
+reg.NAME = "(" + reg.NMCHAR + ")+";
+reg.N1 = '\\n|\\r\\n|\\r|\\f';
+reg.string1 = '"([^\\n\\r\\f\\\\"]' + "|(\\\\" + reg.N1 + ")|(" + reg.NONASCII + ")|(" + reg.ESCAPE + "))*\"";
+reg.string2 = '\'([^\\n\\r\\f\\\\\']' + "|(\\\\" + reg.N1 + ")|(" + reg.NONASCII + ")|(" + reg.ESCAPE + "))*'";
+reg.STRING = reg.string1 + "|" + reg.string2;
