@@ -219,7 +219,42 @@
 					break;
 			}
 		}],
-		[/^\[\w+(([~^$|*]?=)"((?:[^"]+|(?:\\)")*)")?/]
+		[/^\[(\w+)(?:([~^$|*]?=)"((?:[^"]+|(?:\\)")*)")?/, function(match) {
+			var attr = match[1];
+			var type = match[2];
+			var val = match[3];
+			if (type === undefined) {
+				return function(node) {
+					return node.hasAttribute(attr);
+				};
+			}
+			switch (type) {
+				case "=":
+					return function(node) {
+						return node.getAttribute(attr) === val;
+					};
+				case "~=":
+					return function(node) {
+						return new RegExp("\\b" + val + "\\b").test(node.getAttribute(attr));
+					};
+				case "^=":
+					return function(node) {
+						return new RegExp("^" + val).test(node.getAttribte(attr));
+					};
+				case "$=":
+					return function(node) {
+						return new RegExp(val + "$").test(node.getAttribte(attr));
+					};
+				case "*=":
+					return function(node) {
+						return node.hasAttribte(attr) && node.getAttribute(attr).indexOf(val) !== -1;
+					};
+				case "|=":
+					return function(node) {
+						return new RegExp("^" + val + "-").test(node.getAttribte(attr));
+					};
+			}
+		}]
 	];
 	properties.push([function(str) {
 		this.matched = str.indexOf(":not(") === 0;
