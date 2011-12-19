@@ -61,7 +61,14 @@ var MODES = {
 				return ret;
 			};
 		}()),
-		exec: (function() {}())
+		exec: (function() {
+			return function(match, not) {
+				var expr = new RegExp("\\b" + match[1] + "\\b", "i");
+				return function(node) {
+					return (expr.test(node.className)) !== not;
+				}
+			}
+		}())
 	},
 	ID: { // Tag ID
 		test: (function() {
@@ -79,7 +86,14 @@ var MODES = {
 				return ret;
 			};
 		}()),
-		exec: (function() {}())
+		exec: (function() {
+			return function(match, not) {
+				match = match[1];
+				return function(node) {
+					return (node.id === match) !== not;
+				}
+			}
+		}())
 	},
 	ATTR: { // [attr~="blah]
 		test: (function() {
@@ -97,12 +111,58 @@ var MODES = {
 					return ret;
 			};
 		}()),
-		exec: (function() {}())
+		exec: (function() {
+			return function(match, not) {
+				var attr = match[2],
+					rel  = match[3],
+					val  = match[4];
+				if (!rel) {
+					return function(node) {
+						return node.hasAttribute(attr) !== not;
+					}
+				}
+				switch(rel) {
+					case "=":
+						return function(node) {
+							return (node.getAttribute(attr) == val) !== not;
+						}
+					case "~=":
+						if (val === "" || /\s/.test(val)) {
+							return function(node) {
+								return !not;
+							}
+						}
+						var reg = new RegExp("\\b" + val + "\\b");
+						return function(node) {
+							return (reg.test(node.getAttribute(attr))) !== not;
+						}
+					case "^=":
+						var reg = new RegExp("^" + val);
+						return function(node) {
+							return (reg.test(node.getAttribute(attr))) !== not;
+						}
+					case "$=":
+						var reg = new RegExp(val + "$");
+						return function(node) {
+							return (reg.test(node.getAttribute(attr))) !== not;
+						}
+					case "*=":
+						return function(node) {
+							return (node.hasAttribute(attr) && node.getAttribute(attr).indexOf(val)) !== not;
+						}
+					case "|=":
+						var reg = new RegExp("^" + val + "(?:-|$)");
+						return function(node) {
+							return (reg.test(node.getAttribute(attr))) !== not;
+						}
+				}
+			}
+		}())
 	},
 	PSEUDO: { // :first-child
 		test: (function() {
 			var matches = [
-				/^:(?:(?:first|last|only)-(?:child|of-type))/i,
+				/^:(?:(first|last|only)-(child|of-type))/i,
 				/^:(?:empty|enabled|checked|disabled|target|root)/i,
 				/^:(?:text|password|submit|image|file|reset|button|checkbox|input)/i // Not part of spec.
 				],
@@ -127,7 +187,69 @@ var MODES = {
 					return {};
 			};
 		}()),
-		exec: (function() {}())
+		exec: (function() {
+			function hasParent(node) {
+				return !!node.parentNode;
+			}
+			return function(match, not) {
+				var selector = match[0];
+				if (/-/.test(selector)) { // first-child, etc.
+					var first  = match[1],
+						second = match[2];
+					switch (first) {
+						case "first":
+							if (second === "child") {
+								return function(node) {
+									return (hasParent(node) && node.parentNode.firstChild === node) !== not;
+								}
+							} else {
+								return function(node) {
+									return (hasParent(node) && node.parentNode.getElementsByTagName(node.nodeName) === node) !== not;
+								}
+							}
+						case "only":
+							if (second === "child") {
+								return function(node) {
+									return (hasParent(node) && node.parentNode.childNodes.length === 1) !== not;
+								}
+							} else {
+								return function(node) {
+									if (!hasParent(node)) return not;
+									var children  = node.parentNode.childNodes,
+										nodeName = node.nodeName,
+										count    = 0,
+										i;
+									for (i = children.length - 1; i >= 0; --i) {
+										if (children[i].nodeName === nodeName)
+											if (children[i] !== node)
+												return not;
+									}
+									return !not;
+								}
+							}
+						case "last":
+							if (second === "child") {
+								return function(node) {
+									return (hasParent(node) && node.parentNode.lastChild === node) !== not;
+								}
+							} else {
+								return function(node) {
+									if (!hasParent(node)) return not;
+									var children  = node.parentNode.childNodes,
+										nodeName = node.nodeName,
+										i;
+									for (i = children.length - 1; i >= 0; --i) {
+										if (children[i].nodeName === nodeName)
+											return (children[i] === node) !== not;
+									}
+								}
+							}
+					}
+				} else { // Others.
+
+				}
+			}
+		}())
 	},
 	NTH: {
 		test: (function() {
