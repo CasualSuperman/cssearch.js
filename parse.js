@@ -16,7 +16,8 @@ var reg = {};
 	reg.N1 = '\\n|\\r\\n|\\r|\\f';
 	reg.string1 = '"(?:[^\\n\\r\\f\\\\"]' + "|(?:\\\\" + reg.N1 + ")|(?:" + reg.NONASCII + ")|(?:" + reg.ESCAPE + "))*\"";
 	reg.string2 = '\'(?:[^\\n\\r\\f\\\\\']' + "|(?:\\\\" + reg.N1 + ")|(?:" + reg.NONASCII + ")|(?:" + reg.ESCAPE + "))*'";
-	reg.STRING = reg.string1 + "|" + reg.string2;
+	reg.string3 = '(?:[^\\n\\r\\f\\\\]' + "|(?:\\\\" + reg.N1 + ")|(?:" + reg.NONASCII + ")|(?:" + reg.ESCAPE + "))*?";
+	reg.STRING = reg.string1 + "|" + reg.string2 + "|" + reg.string3;
 
 // Parser modes
 var MODES = {
@@ -97,7 +98,7 @@ var MODES = {
 	},
 	ATTR: { // [attr~="blah]
 		test: (function() {
-			var expr = new RegExp("^(\\[\\s*(" + reg.NAME +	")\\s*(?:([~|^$*]?=)\\s*(" + reg.STRING + "))?\\s*\\])", "i");
+			var expr = new RegExp("^(\\[\\s*(" + reg.NAME +	")\\s*(?:([!~|^$*]?=)\\s*(" + reg.STRING + "))?\\s*\\])", "i");
 			return function(str) {
 					var match = str.match(expr),
 						ret   = {};
@@ -125,6 +126,10 @@ var MODES = {
 					case "=":
 						return function(node) {
 							return (node.getAttribute(attr) == val) !== not;
+						}
+					case "!=":
+						return function(node) {
+							return (node.getAttribute(attr) == val) === not;
 						}
 					case "~=":
 						if (val === "" || /\s/.test(val)) {
@@ -204,7 +209,7 @@ var MODES = {
 								}
 							} else {
 								return function(node) {
-									return (hasParent(node) && node.parentNode.getElementsByTagName(node.nodeName) === node) !== not;
+									return (hasParent(node) && node.parentNode.getElementsByTagName(node.nodeName)[0] === node) !== not;
 								}
 							}
 						case "only":
@@ -272,36 +277,59 @@ var MODES = {
 				return ret;
 			}
 		}()),
+		exec: (function() {return function() {}}())
+	},
+	CONTAINS: { // :contains(selectors)
+		test: (function() {
+			var expr = /^:contains\(\s*/i;
+			return function(str) {
+				var ret = {},
+					match = str.match(expr);
+				if (match !== null) {
+					ret.match   = match;
+					ret.matched = true;
+					ret.token   = ":contains("
+					ret.len     = match[0].length;
+					ret.type    = TypeList.CONTAINS_BEGIN;
+				}
+				return ret;
+			}
+		}()),
 		exec: (function() {}())
 	},
 	NOT: { // :not(.hot)
 		test: (function() {
-			var test = /^(?::not\(\s*|\s*\))/i,
-				begin = /^:not\(\s*/i,
-				end = /^\s*\)/;
+			var test = /^:not\(\s*/i;
 			return function(str) {
-					var ret = {};
-					if (test.test(str)){
-						var ends = str.match(end);
-						if (ends !== null) {
-							ret.match   = ends;
-							ret.matched = true;
-							ret.token   = ")";
-							ret.len     = ends[0].length;
-							ret.type    = TypeList.NOT_END;
-						} else {
-							var begins = str.match(begin);
-							if (begins !== null) {
-								ret.match   = begins;
-								ret.matched = true;
-								ret.token   = ":not(";
-								ret.len     = begins[0].length;
-								ret.type    = TypeList.NOT_BEGIN;
-							}
-						}
+					var ret = {},
+						match = str.match(test);
+					if (match !== null){
+						ret.match   = match;
+						ret.matched = true;
+						ret.token   = ":not(";
+						ret.len     = match[0].length;
+						ret.type    = TypeList.NOT_BEGIN;
 					}
 					return ret;
 			};
+		}()),
+		exec: (function() {}())
+	},
+	FUNC_END: { // end paren of a functional pseudo-selector
+		test: (function() {
+			var end = /^\s*\)/;
+			return function(str) {
+				var ret = {},
+					match = str.match(end);
+				if (match !== null) {
+					ret.match   = match;
+					ret.matched = true;
+					ret.token   = ")";
+					ret.len     = match[0].length;
+					ret.type    = TypeList.FUNC_END;
+				}
+				return ret;
+			}
 		}()),
 		exec: (function() {}())
 	},
@@ -324,7 +352,13 @@ var MODES = {
 					return ret;
 			};
 		}()),
-		exec: (function() {}())
+		exec: (function() {
+			return function(selector) {
+				return function(next, context) {
+					return context.getElementsByTagName(next.nodeName);
+				}
+			}
+		}())
 	}
 }
 // Modes in the order they should be checked.
@@ -336,7 +370,9 @@ var ModeList = [
 	MODES.NOT,
 	MODES.PSEUDO,
 	MODES.ATTR,
-	MODES.NTH
+	MODES.FUNC_END,
+	MODES.NTH,
+	MODES.CONTAINS
 ];
 
 // Node types.
@@ -347,13 +383,14 @@ var TypeList = {
 	PSEUDO:              3,
 	ATTR:                4,
 	NOT_BEGIN:           5,
-	NOT_END:             6,
+	FUNC_END:            6,
 	DESCENDANT_NODE:     7,
 	CHILD_NODE:          8,
 	NEXT_ELDEST_SIBLING: 9,
 	YOUNGER_SIBLING:     10,
 	LIST:                11,
-	ATTR_NTH:            12
+	ATTR_NTH:            12,
+	CONTAINS_BEGIN:      13
 }
 
 // Relationship modifiers
@@ -390,7 +427,8 @@ var parse = function(string) {
 };
 
 var combine = function(nodes) {
-	var objects = [],
+	var groups  = [],
+		objects = [],
 		object  = baseObject(),
 		i       = 0,
 		len     = nodes.length,
@@ -403,9 +441,23 @@ var combine = function(nodes) {
 			case type.DESCENDANT_NODE     :
 			case type.CHILD_NODE          :
 			case type.YOUNGER_SIBLING     :
-			case type.LIST                :
-				objects.push(object);
-				object = baseObject();
+				if (! object.not) {
+					object.next = modes.RELATION.exec(node.type);
+					objects.push(object);
+					object = baseObject();
+				} else {
+
+				}
+				break;
+			case type.LIST :
+				if (! object.not) {
+					objects.push(object);
+					groups.push(objects);
+					object = baseObject();
+					objects = [];
+				} else {
+
+				}
 				break;
 			case type.TAG :
 				if (object.not)
@@ -428,23 +480,32 @@ var combine = function(nodes) {
 			case type.ATTR :
 				object.attributes.unshift(modes.ATTR.exec(node.match, object.not));
 				break;
+			case type.CONTAINS_BEGIN :
+				if (object.not || object.contains) throw "IllegalNestedFunctionalSelector";
+				object.contains = true;
+				break;
 			case type.NOT_BEGIN :
-				if (object.not) throw "IllegalNestedNot";
+				if (object.not || object.contains) throw "IllegalNestedFunctionalSelector";
 				object.not = true;
 				break;
-			case type.NOT_END :
-				if (!object.not) throw "ExtraCloseParen";
+			case type.FUNC_END :
+				if (!object.not && !object.contains) throw "ExtraCloseParen";
 				object.not = false;
+				object.contains = false;
 				break;
-			case ATTR_NTH :
+			case type.ATTR_NTH :
 				object.attributes.push(modes.NTH.exec(node.match, object.not));
 				break;
 			default:
 				throw "IllegalNodeError";
 		}
 	}
+	if (object.not) {
+		throw "UnclosedNotException";
+	}
 	objects.push(object);
-	return objects;
+	groups.push(objects);
+	return groups;
 };
 var baseObject = function() {
 	return {
