@@ -187,7 +187,7 @@ var relationship = {
 	" ": TypeList.DESCENDANT_NODE,
 	">": TypeList.CHILD_NODE,
 	"+": TypeList.NEXT_ELDEST_SIBLING,
-	"~": TypeList.YOUNDER_SIBLING,
+	"~": TypeList.YOUNGER_SIBLING,
 	",": TypeList.LIST
 };
 
