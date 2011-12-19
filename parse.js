@@ -289,10 +289,13 @@ var combine = function(nodes) {
 				if (object.not)
 					object.attributes.unshift(modes.NAME.exec(node.match, object.not));
 				else
-					object.nodeName = node.match[0];
+					object.nodeName = node.match[1];
 				break;
 			case type.ID :
-				object.id = modes.ID.exec(node.match, object.not);
+				if (object.not)
+					object.attributes.unshift(modes.ID.exec(node.match, object.not));
+				else
+					object.id = node.match[1];
 				break;
 			case type.CLASS :
 				object.classes.push(modes.CLASS.exec(node.match, object.not));
