@@ -5,7 +5,7 @@ reg.ESCAPE = reg.UNICODE + "|" + '\\\\[^\\n\\r\\f0-9a-f]';
 reg.NONASCII = '[^\\0-\\177]';
 reg.NMSTART = '[_a-z]' + "|" + reg.NONASCII + "|" + reg.ESCAPE;
 reg.NMCHAR = '[_a-z0-9-]' + "|" + reg.NONASCII + "|" + reg.ESCAPE;
-reg.IDENT = '-?' + "(" + reg.NMSTART + ")(" + reg.NMCHAR + ")*";
+reg.IDENT = '-?' + "(?:" + reg.NMSTART + ")(?:" + reg.NMCHAR + ")*";
 reg.NUM = '[0-9]+|[0-9]*\\.[0-9]+';
 reg.NAME = "(?:" + reg.NMCHAR + ")+";
 reg.N1 = '\\n|\\r\\n|\\r|\\f';
@@ -13,7 +13,7 @@ reg.string1 = '"(?:[^\\n\\r\\f\\\\"]' + "|(?:\\\\" + reg.N1 + ")|(?:" + reg.NONA
 reg.string2 = '\'(?:[^\\n\\r\\f\\\\\']' + "|(?:\\\\" + reg.N1 + ")|(?:" + reg.NONASCII + ")|(?:" + reg.ESCAPE + "))*'";
 reg.STRING = reg.string1 + "|" + reg.string2;
 
-MODES = {};
+var MODES = {};
 MODES.NAME ={
 	 test: (function() {
 		var expr = new RegExp("^(" + reg.NAME + ")", "i");
@@ -23,7 +23,7 @@ MODES.NAME ={
 				this.token   = match[1];
 				this.len     = match[0].length;
 				this.matched = true;
-				this.type    = parse.TypeList.TAG;
+				this.type    = TypeList.TAG;
 			}
 			return this;
 		};
@@ -39,7 +39,7 @@ MODES.CLASS = {
 				this.token   = match[1];
 				this.len     = match[0].length;
 				this.matched = true;
-				this.type    = parse.TypeList.CLASS;
+				this.type    = TypeList.CLASS;
 			}
 			return this;
 		};
@@ -55,7 +55,7 @@ MODES.ID = {
 				this.token   = match[1];
 				this.len     = match[0].length;
 				this.matched = true;
-				this.type    = parse.TypeList.ID;
+				this.type    = TypeList.ID;
 			}
 			return this;
 		};
@@ -71,7 +71,7 @@ MODES.ATTR = {
 					this.token   = match[1];
 					this.len     = match[0].length;
 					this.matched = true;
-					this.type    = parse.TypeList.ATTR;
+					this.type    = TypeList.ATTR;
 				}
 				return this;
 		};
@@ -97,7 +97,7 @@ MODES.PSEUDO = {
 							this.matched = true;
 							this.token   = match[0];
 							this.len     = match[0].length;
-							this.type    = parse.TypeList.PSEUDO;
+							this.type    = TypeList.PSEUDO;
 						}
 					}
 				}
@@ -114,12 +114,12 @@ MODES.NOT = {
 					this.matched = true;
 					this.token   = ")";
 					this.len     = 1;
-					this.type    = parse.TypeList.NOT_E;
+					this.type    = TypeList.NOT_E;
 				} else if (begin.test(str)) {
 					this.matched = true;
 					this.token   = ":not(";
 					this.len     = 5;
-					this.type    = parse.TypeList.NOT_B;
+					this.type    = TypeList.NOT_B;
 				}
 				return this;
 		};
@@ -167,18 +167,18 @@ var TypeList = {
 }
 
 var relationship = {
-	" ": parse.TypeList.DESC_N,
-	">": parse.TypeList.CHIL_N,
-	"+": parse.TypeList.NXES_N,
-	"~": parse.TypeList.YNSB_N,
-	",": parse.TypeList.LIST
+	" ": TypeList.DESC_N,
+	">": TypeList.CHIL_N,
+	"+": TypeList.NXES_N,
+	"~": TypeList.YNSB_N,
+	",": TypeList.LIST
 };
 
 return function(string) {
 	var nodes     = [],
 		pos       = 0,
 		modeStack = [],
-		modes     = parse.ModeList,
+		modes     = ModeList,
 		modeCount = modes.length;
 
 	while (string.length) {
