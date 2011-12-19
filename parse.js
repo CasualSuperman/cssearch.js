@@ -1,29 +1,20 @@
-function parse(string) {
-	var nodes     = [],
-		pos       = 0,
-		modeStack = [],
-		modes     = parse.ModeList,
-		modeCount = modes.length;
+window["parse"] = (function() {
+var reg = {};
+reg.UNICODE = '\\\\[0-9a-f]{1,6}(?:\\r\\n|[ \\n\\r\\t\\f])?';
+reg.ESCAPE = reg.UNICODE + "|" + '\\\\[^\\n\\r\\f0-9a-f]';
+reg.NONASCII = '[^\\0-\\177]';
+reg.NMSTART = '[_a-z]' + "|" + reg.NONASCII + "|" + reg.ESCAPE;
+reg.NMCHAR = '[_a-z0-9-]' + "|" + reg.NONASCII + "|" + reg.ESCAPE;
+reg.IDENT = '-?' + "(" + reg.NMSTART + ")(" + reg.NMCHAR + ")*";
+reg.NUM = '[0-9]+|[0-9]*\\.[0-9]+';
+reg.NAME = "(?:" + reg.NMCHAR + ")+";
+reg.N1 = '\\n|\\r\\n|\\r|\\f';
+reg.string1 = '"(?:[^\\n\\r\\f\\\\"]' + "|(?:\\\\" + reg.N1 + ")|(?:" + reg.NONASCII + ")|(?:" + reg.ESCAPE + "))*\"";
+reg.string2 = '\'(?:[^\\n\\r\\f\\\\\']' + "|(?:\\\\" + reg.N1 + ")|(?:" + reg.NONASCII + ")|(?:" + reg.ESCAPE + "))*'";
+reg.STRING = reg.string1 + "|" + reg.string2;
 
-	while (string.length) {
-		var matched = false;
-		for (var i = 0; i < modeCount && !matched; ++i) {
-			var match = new modes[i].test(string);
-			matched = match.matched;
-			if (matched) {
-				string = string.substr(match.len);
-				nodes.push(match);
-			}
-		}
-		if (!matched) {
-			throw "ParseError";
-		}
-	}
-	return nodes;
-}
-
-parse.MODES = {};
-parse.MODES.NAME ={
+MODES = {};
+MODES.NAME ={
 	 test: (function() {
 		var expr = new RegExp("^(" + reg.NAME + ")", "i");
 		return function(str) {
@@ -39,7 +30,7 @@ parse.MODES.NAME ={
 	}()),
 	exec: (function() {}())
 };
-parse.MODES.CLASS = {
+MODES.CLASS = {
 	test: (function() {
 		var expr = new RegExp("^\\.(" + reg.NAME + ")", "i");
 		return function(str) {
@@ -55,7 +46,7 @@ parse.MODES.CLASS = {
 	}()),
 	exec: (function() {}())
 };
-parse.MODES.ID = {
+MODES.ID = {
 	test: (function() {
 		var expr = new RegExp("^#(" + reg.NAME + ")", "i");
 		return function(str) {
@@ -71,7 +62,7 @@ parse.MODES.ID = {
 	}()),
 	exec: (function() {}())
 };
-parse.MODES.ATTR = {
+MODES.ATTR = {
 	test: (function() {
 		var expr = new RegExp("^(\\[\\s*(" + reg.NAME +	")\\s*(?:([~|^$*]?=)\\s*(" + reg.STRING + "))?\\s*\\])", "i")
 		return function(str) {
@@ -87,7 +78,7 @@ parse.MODES.ATTR = {
 	}()),
 	exec: (function() {}())
 };
-parse.MODES.PSEUDO = {
+MODES.PSEUDO = {
 	test: (function() {
 		var matches = [
 			/^:(?:(?:first|last|only)-(?:child|of-type))/,
@@ -115,7 +106,7 @@ parse.MODES.PSEUDO = {
 	}()),
 	exec: (function() {}())
 }
-parse.MODES.NOT = {
+MODES.NOT = {
 	test: (function() {
 		var begin = /^:not\(/i;
 		return function(str) {
@@ -135,7 +126,7 @@ parse.MODES.NOT = {
 	}()),
 	exec: (function() {}())
 }
-parse.MODES.RELATION = {
+MODES.RELATION = {
 	test: (function() {
 		var expr = /^\s*([- +>~,])\s*/;
 		return function(str) {
@@ -151,16 +142,16 @@ parse.MODES.RELATION = {
 	}()),
 	exec: (function() {}())
 };
-parse.ModeList = [
-	parse.MODES.NAME,
-	parse.MODES.CLASS,
-	parse.MODES.ID,
-	parse.MODES.ATTR,
-	parse.MODES.PSEUDO,
-	parse.MODES.NOT,
-	parse.MODES.RELATION
+var ModeList = [
+	MODES.NAME,
+	MODES.CLASS,
+	MODES.ID,
+	MODES.ATTR,
+	MODES.PSEUDO,
+	MODES.NOT,
+	MODES.RELATION
 ];
-parse.TypeList = {
+var TypeList = {
 	ID:     0,
 	TAG:    1,
 	CLASS:  2,
@@ -182,3 +173,28 @@ var relationship = {
 	"~": parse.TypeList.YNSB_N,
 	",": parse.TypeList.LIST
 };
+
+return function(string) {
+	var nodes     = [],
+		pos       = 0,
+		modeStack = [],
+		modes     = parse.ModeList,
+		modeCount = modes.length;
+
+	while (string.length) {
+		var matched = false;
+		for (var i = 0; i < modeCount && !matched; ++i) {
+			var match = new modes[i].test(string);
+			matched = match.matched;
+			if (matched) {
+				string = string.substr(match.len);
+				nodes.push(match);
+			}
+		}
+		if (!matched) {
+			throw "ParseError";
+		}
+	}
+	return nodes;
+}
+}());
